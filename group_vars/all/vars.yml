@@ -1,0 +1,7 @@
+---
+
+webmail:
+  haproxy: "docker.io/izalmul123/haproxy:1"
+  app: "docker.io/izalmul123/only-webmail-lite:3"
+  mysql: "docker.io/izalmul123/mysql-server:3"
+  mysqlpass: "my-secret-pw"

@@ -1,0 +1,13 @@
+---
+
+- name: webmail server
+  hosts:
+    - fedora-1
+  gather_facts: no
+  pre_tasks:
+    - name: 'install python2'
+      raw: dnf -y install python2
+      become: yes
+      become_user: root
+  roles:
+    - { role: fedora/webmail, remote_user: fedora,become: yes, become_user: root }

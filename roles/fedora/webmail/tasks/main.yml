@@ -1,0 +1,83 @@
+---
+# tasks file for webmail
+
+- name: Install python-dnf module
+  dnf:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - python-dnf
+    - dnf-plugins-core
+
+- name: Add repo
+  shell: dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+
+- name: Remove existing unofficial Docker packages
+  dnf:
+    name: "{{ item }}"
+    state: absent
+  with_items:
+    - docker
+    - docker-common
+    - docker-engine-selinux
+    - docker-engine
+
+- name: install docker-ce
+  dnf: name=docker-ce enablerepo=docker-ce-edge state=present
+  register: dockerinstalled
+
+- name: Start docker service
+  systemd:
+    state: started
+    name: docker
+    enabled: True
+  when: dockerinstalled.changed
+
+- name: install docker-py
+  pip:
+    name: docker-py
+
+- name: Mysql container
+  docker_container:
+    name: mysql
+    image: "{{webmail.mysql}}"
+    state: started
+    restart: yes
+    pull: yes
+    env:
+      MYSQL_ROOT_PASSWORD: "{{webmail.mysqlpass}}"
+
+- name: get mysql IP address
+  command: "docker inspect --format '{''{ .NetworkSettings.IPAddress }''}' mysql"
+  register: mysql_ip_address
+
+- name: wait for mysqldb to become ready
+  wait_for:
+    host: "{{ mysql_ip_address.stdout }}"
+    port: 3306
+    state: started
+    delay: 5
+    connect_timeout: 15
+    timeout: 30
+
+- name: Webmail container-1
+  docker_container:
+    name: app10
+    image: "{{webmail.app}}"
+    state: started
+    restart: yes
+    pull: yes
+    links:
+     - "mysql:mysql"
+
+- name: Haproxy container
+  docker_container:
+    name: haproxy
+    image: "{{webmail.haproxy}}"
+    state: started
+    restart: yes
+    pull: yes
+    ports:
+     - "80:80"
+    links:
+     - "app10:app10"
